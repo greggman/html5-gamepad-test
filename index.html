@@ -1,6 +1,18 @@
+<style>
+body {
+    background: #444;
+    color: white;
+    font-family: monospace;
+}
+#gamepads>* {
+    background: #333;
+    padding: 1em;
+}
+</style>
 <body>
+
 <h1>HTML5 Gamepad Test</h1>
-<div id="running"></div>
+<div>running: <span id="running"></span></div>
 <div id="gamepads"></div>
 </body>
 <script>
@@ -44,15 +56,21 @@ function handleDisconnect(e) {
   removeGamepad(e.gamepad);
 }
 
-const keys = ['connected', 'displayId', 'mapping', /*'timestamp'*/];
+const t = String.fromCharCode(0x26AA);
+const f = String.fromCharCode(0x26AB);
+function onOff(v) {
+  return v ? t : f;
+}
+
+const keys = ['id', 'connected', 'mapping', /*'timestamp'*/];
 function processController(info) {
   const {elem, gamepad} = info;
-  const lines = [`gamepad:${gamepad.index}`];
+  const lines = [`gamepad  : ${gamepad.index}`];
   for (const key of keys) {
-    lines.push(`${key}: ${gamepad[key]}`);
+    lines.push(`${key.padEnd(9)}: ${gamepad[key]}`);
   }
-  lines.push(gamepad.axes.map((v, ndx) => `${ndx}: ${v.toFixed(2)}`).join(','));
-  lines.push(gamepad.buttons.map((v, ndx) => `${ndx}: ${v.pressed}, ${v.value.toFixed(2)}`).join(','));
+  lines.push(`axes     : [${gamepad.axes.map((v, ndx) => `${ndx}: ${v.toFixed(2).padStart(5)}`).join(', ')} ]`);
+  lines.push(`buttons  : [${gamepad.buttons.map((v, ndx) => `${ndx}: ${onOff(v.pressed)} ${v.value.toFixed(2)}`).join(', ')} ]`);
   elem.textContent = lines.join('\n');
 }
 
