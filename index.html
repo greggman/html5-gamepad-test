@@ -30,9 +30,65 @@ body {
 #gamepads>* {
     background: #333;
     padding: 1em;
+    margin: 10px 5px 0 0;
 }
 #gamepads pre {
     white-space: pre-wrap;
+}
+
+.head {
+  display: flex;
+}
+.head .id {
+  flex: 1 1 auto;
+}
+.head .index,
+.head .id {
+  display: inline-block;
+  background: #222;
+  padding: 0.5em;
+}
+.head .index {
+}
+
+.info .label {
+  width: 7em;
+  display: inline-block;
+}
+.info>div {
+  padding: 0.25em;
+  background: #222;
+  margin: 0.25em 0.25em 0 0;
+}
+
+.inputs {
+  display: flex;
+}
+.axes {
+  display: flex;
+  align-items: flex-start;
+}
+
+.svg text {
+  color: #CCC;
+  font-family: monospace;
+}
+
+.axes svg text {
+  font-size: 0.6px;
+}
+.buttons svg text {
+  font-size: 1.2px;
+}
+.axes>div, .buttons>div {
+  display: inline-block;
+  background: #222;
+}
+.axes>div {
+  margin: 2px 5px 0 0;
+}
+.buttons>div {
+  margin: 2px 2px 0 0;
 }
 </style>
 <body>
@@ -43,19 +99,82 @@ body {
 </body>
 <script>
 
+const fudgeFactor = 2;  // because of bug in Chrome related to svg text alignment font sizes can not be < 1
 const runningElem = document.querySelector('#running');
 const gamepadsElem = document.querySelector('#gamepads');
 const gamepadsByIndex = {};
 
+const controllerTemplate = `
+<div>
+  <div class="head"><div class="index"></div><div class="id"></div></div>
+  <div class="info"><div class="label">connected:</div><span class="connected"></span></div>
+  <div class="info"><div class="label">mapping:</div><span class="mapping"></span></div>
+  <div class="inputs">
+    <div class="axes"></div>
+    <div class="buttons"></div>
+  </div>
+</div>
+`;
+const axisTemplate = `
+<svg viewBox="-2.2 -2.2 4.4 4.4" width="128" height="128">
+    <circle cx="0" cy="0" r="2" fill="none" stroke="#888" stroke-width="0.04" />
+    <path d="M0,-2L0,2M-2,0L2,0" stroke="#888" stroke-width="0.04" />
+    <circle cx="0" cy="0" r="0.22" fill="red" class="axis" />
+    <text text-anchor="middle" fill="#CCC" x="0" y="2">0</text>
+</svg>
+`
+
+const buttonTemplate = `
+<svg viewBox="-2.2 -2.2 4.4 4.4" width="64" height="64">
+  <circle cx="0" cy="0" r="2" fill="none" stroke="#888" stroke-width="0.1" />
+  <circle cx="0" cy="0" r="0" fill="none" fill="red" class="button" />
+  <text class="value" dominant-baseline="middle" text-anchor="middle" fill="#CCC" x="0" y="0">0.00</text>
+  <text class="index" alignment-baseline="hanging" dominant-baseline="hanging" text-anchor="start" fill="#CCC" x="-2" y="-2">0</text>
+</svg>
+`;
+
 function addGamepad(gamepad) {
   console.log('add:', gamepad.index);
-  const elem = document.createElement('pre');
-  gamepadsElem.appendChild(elem);
+  const elem = document.createElement('div');
+  elem.innerHTML = controllerTemplate;
+
+  const axesElem = elem.querySelector('.axes');
+  const buttonsElem = elem.querySelector('.buttons');
+  
+  const axes = [];
+  for (let ndx = 0; ndx < gamepad.axes.length; ndx += 2) {
+    const div = document.createElement('div');
+    div.innerHTML = axisTemplate;
+    axesElem.appendChild(div);
+    axes.push({
+      axis: div.querySelector('.axis'),
+      value: div.querySelector('text'),
+    });
+  }
+
+  const buttons = [];
+  for (let ndx = 0; ndx < gamepad.buttons.length; ++ndx) {
+    const div = document.createElement('div');
+    div.innerHTML = buttonTemplate;
+    buttonsElem.appendChild(div);
+    div.querySelector('.index').textContent = ndx;
+    buttons.push({
+      circle: div.querySelector('.button'),
+      value: div.querySelector('.value'),
+    });
+  }
 
   gamepadsByIndex[gamepad.index] = {
     gamepad,
     elem,
+    axes,
+    buttons,
+    index: elem.querySelector('.index'),
+    id: elem.querySelector('.id'),
+    mapping: elem.querySelector('.mapping'),
+    connected: elem.querySelector('.connected'),
   };
+  gamepadsElem.appendChild(elem);
 }
 
 function removeGamepad(gamepad) {
@@ -95,16 +214,29 @@ function onOff(v) {
   return v ? t : f;
 }
 
-const keys = ['id', 'connected', 'mapping', /*'timestamp'*/];
+const keys = ['index', 'id', 'connected', 'mapping', /*'timestamp'*/];
 function processController(info) {
-  const {elem, gamepad} = info;
+  const {elem, gamepad, axes, buttons} = info;
   const lines = [`gamepad  : ${gamepad.index}`];
   for (const key of keys) {
-    lines.push(`${key.padEnd(9)}: ${gamepad[key]}`);
+    info[key].textContent = gamepad[key];
   }
-  lines.push(`axes     : [${gamepad.axes.map((v, ndx) => `${ndx}: ${v.toFixed(2).padStart(5)}`).join(', ')} ]`);
-  lines.push(`buttons  : [${gamepad.buttons.map((v, ndx) => `${ndx}: ${onOff(v.pressed)} ${v.value.toFixed(2)}`).join(', ')} ]`);
-  elem.textContent = lines.join('\n');
+  axes.forEach(({axis, value}, ndx) => {
+    const off = ndx * 2;
+    axis.setAttributeNS(null, 'cx', gamepad.axes[off    ] * fudgeFactor);
+    axis.setAttributeNS(null, 'cy', gamepad.axes[off + 1] * fudgeFactor);
+    value.textContent = `${gamepad.axes[off].toFixed(2).padStart(5)},${gamepad.axes[off].toFixed(2).padStart(5)}`;
+  });
+  buttons.forEach(({circle, value}, ndx) => {
+    const button = gamepad.buttons[ndx];
+    circle.setAttributeNS(null, 'r', button.value * fudgeFactor);
+    circle.setAttributeNS(null, 'fill', button.pressed ? 'red' : 'gray');
+    value.textContent = `${button.value.toFixed(2)}`;
+  });
+  
+//  lines.push(`axes     : [${gamepad.axes.map((v, ndx) => `${ndx}: ${v.toFixed(2).padStart(5)}`).join(', ')} ]`);
+//  lines.push(`buttons  : [${gamepad.buttons.map((v, ndx) => `${ndx}: ${onOff(v.pressed)} ${v.value.toFixed(2)}`).join(', ')} ]`);
+ // elem.textContent = lines.join('\n');
 }
 
 function addNewPads() {
