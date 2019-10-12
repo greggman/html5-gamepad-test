@@ -31,6 +31,9 @@ body {
     background: #333;
     padding: 1em;
 }
+#gamepads pre {
+    white-space: pre-wrap;
+}
 </style>
 <body>
 
@@ -64,8 +67,15 @@ function removeGamepad(gamepad) {
 }
 
 function addGamepadIfNew(gamepad) {
-  if (!gamepadsByIndex[gamepad.index]) {
+  const info = gamepadsByIndex[gamepad.index];
+  if (!info) {
     addGamepad(gamepad);
+  } else {
+    // This broke sometime in the past. It used to be
+    // the same gamepad object was returned forever.
+    // Then Chrome only changed to a new gamepad object
+    // is returned every frame.
+    info.gamepad = gamepad;
   }
 }
 
