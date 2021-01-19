@@ -225,7 +225,7 @@ function processController(info) {
     const off = ndx * 2;
     axis.setAttributeNS(null, 'cx', gamepad.axes[off    ] * fudgeFactor);
     axis.setAttributeNS(null, 'cy', gamepad.axes[off + 1] * fudgeFactor);
-    value.textContent = `${gamepad.axes[off].toFixed(2).padStart(5)},${gamepad.axes[off].toFixed(2).padStart(5)}`;
+    value.textContent = `${gamepad.axes[off].toFixed(2).padStart(5)},${gamepad.axes[off + 1].toFixed(2).padStart(5)}`;
   });
   buttons.forEach(({circle, value}, ndx) => {
     const button = gamepad.buttons[ndx];
